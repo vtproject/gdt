@@ -2,9 +2,8 @@ TextA
 
 TextB1
 
-https://raw.githubusercontent.com/wiki/vtproject/gdt/Linked_page.md
+Linked_text1
 
 TextB2
 
-https://raw.githubusercontent.com/wiki/vtproject/gdt/Linked_page2.md
-
+Linked_text2
