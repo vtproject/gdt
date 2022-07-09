@@ -1,0 +1,1192 @@
+---
+stage: Systems
+group: Distribution
+info: To determine the technical writer assigned to the Stage/Group associated with this page, see https://about.gitlab.com/handbook/engineering/ux/technical-writing/#assignments
+---
+
+# Install GitLab under a relative URL **(FREE SELF)**
+
+While we recommend to install GitLab on its own (sub)domain, sometimes
+this is not possible due to a variety of reasons. In that case, GitLab can also
+be installed under a relative URL, for example `https://example.com/gitlab`.
+
+This document describes how to run GitLab under a relative URL for installations
+from source. If you are using an Omnibus package,
+[the steps are different](https://docs.gitlab.com/omnibus/settings/configuration.html#configuring-a-relative-url-for-gitlab). Use this guide along with the
+[installation guide](installation.md) if you are installing GitLab for the
+first time.
+
+There is no limit to how deeply nested the relative URL can be. For example you
+could serve GitLab under `/foo/bar/gitlab/git` without any issues.
+
+Changing the URL on an existing GitLab installation, changes all remote
+URLs, so you have to manually edit them in any local repository
+that points to your GitLab instance.
+
+The list of configuration files you must change to serve GitLab from a
+relative URL is:
+
+- `/home/git/gitlab/config/initializers/relative_url.rb`
+- `/home/git/gitlab/config/gitlab.yml`
+- `/home/git/gitlab/config/puma.rb`
+- `/home/git/gitlab-shell/config.yml`
+- `/etc/default/gitlab`
+
+After all the changes, you must recompile the assets and [restart GitLab](../administration/restart_gitlab.md#installations-from-source).
+
+## Relative URL requirements
+
+If you configure GitLab with a relative URL, the assets (including JavaScript,
+CSS, fonts, and images) must be recompiled, which can consume a lot of CPU and
+memory resources. To avoid out-of-memory errors, you should have at least 2 GB
+of RAM available on your computer, and we recommend 4 GB RAM, and four or eight
+CPU cores.
+
+See the [requirements](requirements.md) document for more information.
+
+## Enable relative URL in GitLab
+
+NOTE:
+Do not make any changes to your web server configuration file regarding
+relative URL. The relative URL support is implemented by GitLab Workhorse.
+
+---
+
+Before following the steps below to enable relative URL in GitLab, some
+assumptions are made:
+
+- GitLab is served under `/gitlab`
+- The directory under which GitLab is installed is `/home/git/`
+
+Make sure to follow all steps below:
+
+1. Optional. If you run short on resources, you can temporarily free up some
+   memory by shutting down the GitLab service with the following command:
+
+   ```shell
+   sudo service gitlab stop
+   ```
+
+1. Create `/home/git/gitlab/config/initializers/relative_url.rb`
+
+   ```shell
+   cp /home/git/gitlab/config/initializers/relative_url.rb.sample \
+      /home/git/gitlab/config/initializers/relative_url.rb
+   ```
+
+   and change the following line:
+
+   ```ruby
+   config.relative_url_root = "/gitlab"
+   ```
+
+1. Edit `/home/git/gitlab/config/gitlab.yml` and uncomment/change the
+   following line:
+
+   ```yaml
+   relative_url_root: /gitlab
+   ```
+
+1. Edit `/home/git/gitlab/config/puma.rb` and uncomment/change the
+   following line:
+
+   ```ruby
+   ENV['RAILS_RELATIVE_URL_ROOT'] = "/gitlab"
+   ```
+
+1. Edit `/home/git/gitlab-shell/config.yml` and append the relative path to
+   the following line:
+
+   ```yaml
+   gitlab_url: http://127.0.0.1/gitlab
+   ```
+
+1. Make sure you have copied either the supplied systemd services, or the init
+   script and the defaults file, as stated in the
+   [installation guide](installation.md#install-the-service).
+   Then, edit `/etc/default/gitlab` and set in `gitlab_workhorse_options` the
+   `-authBackend` setting to read like:
+
+   ```shell
+   -authBackend http://127.0.0.1:8080/gitlab
+   ```
+
+   NOTE:
+   If you are using a custom init script, make sure to edit the above
+   GitLab Workhorse setting as needed.
+
+1. [Restart GitLab](../administration/restart_gitlab.md#installations-from-source) for the changes to take effect.
+
+## Disable relative URL in GitLab
+
+To disable the relative URL:
+
+1. Remove `/home/git/gitlab/config/initializers/relative_url.rb`
+
+1. Follow the same as above starting from 2. and set up the
+    GitLab URL to one that doesn't contain a relative path.
+
+<!-- ## Troubleshooting
+
+Include any troubleshooting steps that you can foresee. If you know beforehand what issues
+one might have when setting this up, or when something is changed, or on upgrading, it's
+important to describe those, too. Think of things that may go wrong and include them here.
+This is important to minimize requests for support, and to avoid doc comments with
+questions that you know someone might ask.
+
+Each scenario can be a third-level heading, e.g. `### Getting error message X`.
+If you have none to add when creating a doc, leave this section in place
+but commented out to help encourage others to add to it in the future. -->
+
+
+
+*****next source file**************************************************************************
+
+
+---
+stage: Systems
+group: Distribution
+info: To determine the technical writer assigned to the Stage/Group associated with this page, see https://about.gitlab.com/handbook/engineering/ux/technical-writing/#assignments
+---
+
+# GitLab Docker images **(FREE SELF)**
+
+The GitLab Docker images are monolithic images of GitLab running all the
+necessary services in a single container. If you instead want to install GitLab
+on Kubernetes, see [GitLab Helm Charts](https://docs.gitlab.com/charts/).
+
+Find the GitLab official Docker image at:
+
+- [GitLab Docker image in Docker Hub](https://hub.docker.com/r/gitlab/gitlab-ee/)
+
+The Docker images don't include a mail transport agent (MTA). The recommended
+solution is to add an MTA (such as Postfix or Sendmail) running in a separate
+container. As another option, you can install an MTA directly in the GitLab
+container, but this adds maintenance overhead as you'll likely need to reinstall
+the MTA after every upgrade or restart.
+
+In the following examples, if you want to use the latest RC image, use
+`gitlab/gitlab-ee:rc` instead.
+
+WARNING:
+Docker for Windows is not officially supported. There are known issues with volume
+permissions, and potentially other unknown issues. If you are trying to run on Docker
+for Windows, see the [getting help page](https://about.gitlab.com/get-help/) for links
+to community resources (such as IRC or forums) to seek help from other users.
+
+## Prerequisites
+
+Docker is required. See the [official installation documentation](https://docs.docker.com/install/).
+
+## Set up the volumes location
+
+Before setting everything else, configure a new environment variable `$GITLAB_HOME`
+pointing to the directory where the configuration, logs, and data files will reside.
+Ensure that the directory exists and appropriate permission have been granted.
+
+For Linux users, set the path to `/srv/gitlab`:
+
+```shell
+export GITLAB_HOME=/srv/gitlab
+```
+
+For macOS users, use the user's `$HOME/gitlab` directory:
+
+```shell
+export GITLAB_HOME=$HOME/gitlab
+```
+
+The GitLab container uses host mounted volumes to store persistent data:
+
+| Local location       | Container location | Usage                                       |
+|----------------------|--------------------|---------------------------------------------|
+| `$GITLAB_HOME/data`  | `/var/opt/gitlab`  | For storing application data.               |
+| `$GITLAB_HOME/logs`  | `/var/log/gitlab`  | For storing logs.                           |
+| `$GITLAB_HOME/config`| `/etc/gitlab`      | For storing the GitLab configuration files. |
+
+## Installation
+
+The GitLab Docker images can be run in multiple ways:
+
+- [Using Docker Engine](#install-gitlab-using-docker-engine)
+- [Using Docker Compose](#install-gitlab-using-docker-compose)
+- [Using Docker swarm mode](#install-gitlab-using-docker-swarm-mode)
+
+### Install GitLab using Docker Engine
+
+You can fine tune these directories to meet your requirements.
+Once you've set up the `GITLAB_HOME` variable, you can run the image:
+
+```shell
+sudo docker run --detach \
+  --hostname gitlab.example.com \
+  --publish 443:443 --publish 80:80 --publish 22:22 \
+  --name gitlab \
+  --restart always \
+  --volume $GITLAB_HOME/config:/etc/gitlab \
+  --volume $GITLAB_HOME/logs:/var/log/gitlab \
+  --volume $GITLAB_HOME/data:/var/opt/gitlab \
+  --shm-size 256m \
+  gitlab/gitlab-ee:latest
+```
+
+This will download and start a GitLab container and publish ports needed to
+access SSH, HTTP and HTTPS. All GitLab data will be stored as subdirectories of
+`$GITLAB_HOME`. The container will automatically `restart` after a system reboot.
+
+If you are on SELinux, then run this instead:
+
+```shell
+sudo docker run --detach \
+  --hostname gitlab.example.com \
+  --publish 443:443 --publish 80:80 --publish 22:22 \
+  --name gitlab \
+  --restart always \
+  --volume $GITLAB_HOME/config:/etc/gitlab:Z \
+  --volume $GITLAB_HOME/logs:/var/log/gitlab:Z \
+  --volume $GITLAB_HOME/data:/var/opt/gitlab:Z \
+  --shm-size 256m \
+  gitlab/gitlab-ee:latest
+```
+
+This will ensure that the Docker process has enough permissions to create the
+configuration files in the mounted volumes.
+
+If you're using the [Kerberos integration](../integration/kerberos.md) **(PREMIUM ONLY)**,
+you must also publish your Kerberos port (for example, `--publish 8443:8443`).
+Failing to do so prevents Git operations with Kerberos.
+
+The initialization process may take a long time. You can track this
+process with:
+
+```shell
+sudo docker logs -f gitlab
+```
+
+After starting a container you can visit `gitlab.example.com` (or
+`http://192.168.59.103` if you used boot2docker on macOS). It might take a while
+before the Docker container starts to respond to queries.
+
+Visit the GitLab URL, and log in with username `root`
+and the password from the following command:
+
+```shell
+sudo docker exec -it gitlab grep 'Password:' /etc/gitlab/initial_root_password
+```
+
+NOTE:
+The password file will be automatically deleted in the first reconfigure run after 24 hours.
+
+### Install GitLab using Docker Compose
+
+With [Docker Compose](https://docs.docker.com/compose/) you can easily configure,
+install, and upgrade your Docker-based GitLab installation:
+
+1. [Install Docker Compose](https://docs.docker.com/compose/install/).
+1. Create a `docker-compose.yml` file (or [download an example](https://gitlab.com/gitlab-org/omnibus-gitlab/raw/master/docker/docker-compose.yml)):
+
+   ```yaml
+   version: '3.6'
+   services:
+     web:
+       image: 'gitlab/gitlab-ee:latest'
+       restart: always
+       hostname: 'gitlab.example.com'
+       environment:
+         GITLAB_OMNIBUS_CONFIG: |
+           external_url 'https://gitlab.example.com'
+           # Add any other gitlab.rb configuration here, each on its own line
+       ports:
+         - '80:80'
+         - '443:443'
+         - '22:22'
+       volumes:
+         - '$GITLAB_HOME/config:/etc/gitlab'
+         - '$GITLAB_HOME/logs:/var/log/gitlab'
+         - '$GITLAB_HOME/data:/var/opt/gitlab'
+       shm_size: '256m'
+   ```
+
+1. Make sure you are in the same directory as `docker-compose.yml` and start
+   GitLab:
+
+   ```shell
+   docker-compose up -d
+   ```
+
+NOTE:
+Read the ["Pre-configure Docker container"](#pre-configure-docker-container) section
+to see how the `GITLAB_OMNIBUS_CONFIG` variable works.
+
+Below is another `docker-compose.yml` example with GitLab running on a custom
+HTTP and SSH port. Notice how the `GITLAB_OMNIBUS_CONFIG` variables match the
+`ports` section:
+
+```yaml
+version: '3.6'
+services:
+  web:
+    image: 'gitlab/gitlab-ee:latest'
+    restart: always
+    hostname: 'gitlab.example.com'
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://gitlab.example.com:8929'
+        gitlab_rails['gitlab_shell_ssh_port'] = 2224
+    ports:
+      - '8929:8929'
+      - '2224:22'
+    volumes:
+      - '$GITLAB_HOME/config:/etc/gitlab'
+      - '$GITLAB_HOME/logs:/var/log/gitlab'
+      - '$GITLAB_HOME/data:/var/opt/gitlab'
+    shm_size: '256m'
+```
+
+This is the same as using `--publish 8929:8929 --publish 2224:22`.
+
+### Install GitLab using Docker swarm mode
+
+With [Docker swarm mode](https://docs.docker.com/engine/swarm/), you can easily
+configure and deploy your
+Docker-based GitLab installation in a swarm cluster.
+
+In swarm mode you can leverage [Docker secrets](https://docs.docker.com/engine/swarm/secrets/)
+and [Docker configurations](https://docs.docker.com/engine/swarm/configs/) to efficiently and securely deploy your GitLab instance.
+Secrets can be used to securely pass your initial root password without exposing it as an environment variable.
+Configurations can help you to keep your GitLab image as generic as possible.
+
+Here's an example that deploys GitLab with four runners as a [stack](https://docs.docker.com/get-started/part5/), using secrets and configurations:
+
+1. [Set up a Docker swarm](https://docs.docker.com/engine/swarm/swarm-tutorial/).
+1. Create a `docker-compose.yml` file:
+
+   ```yaml
+   version: "3.6"
+   services:
+     gitlab:
+       image: gitlab/gitlab-ee:latest
+       ports:
+         - "22:22"
+         - "80:80"
+         - "443:443"
+       volumes:
+         - $GITLAB_HOME/data:/var/opt/gitlab
+         - $GITLAB_HOME/logs:/var/log/gitlab
+         - $GITLAB_HOME/config:/etc/gitlab
+       shm_size: '256m'
+       environment:
+         GITLAB_OMNIBUS_CONFIG: "from_file('/omnibus_config.rb')"
+       configs:
+         - source: gitlab
+           target: /omnibus_config.rb
+       secrets:
+         - gitlab_root_password
+     gitlab-runner:
+       image: gitlab/gitlab-runner:alpine
+       deploy:
+         mode: replicated
+         replicas: 4
+   configs:
+     gitlab:
+       file: ./gitlab.rb
+   secrets:
+     gitlab_root_password:
+       file: ./root_password.txt
+   ```
+
+   For simplicity reasons, the `network` configuration was omitted.
+   More information can be found in the official [Compose file reference](https://docs.docker.com/compose/compose-file/).
+
+1. Create a `gitlab.rb` file:
+
+   ```ruby
+   external_url 'https://my.domain.com/'
+   gitlab_rails['initial_root_password'] = File.read('/run/secrets/gitlab_root_password').gsub("\n", "")
+   ```
+
+1. Create a `root_password.txt` file:
+
+   ```plaintext
+   MySuperSecretAndSecurePass0rd!
+   ```
+
+1. Make sure you are in the same directory as `docker-compose.yml` and run:
+
+   ```shell
+   docker stack deploy --compose-file docker-compose.yml mystack
+   ```
+
+### Install the product documentation
+
+This is an optional step. See how to [self-host the product documentation](../administration/docs_self_host.md#self-host-the-product-documentation-with-docker).
+
+## Configuration
+
+This container uses the official Omnibus GitLab package, so all configuration
+is done in the unique configuration file `/etc/gitlab/gitlab.rb`.
+
+To access the GitLab configuration file, you can start a shell session in the
+context of a running container. This will allow you to browse all directories
+and use your favorite text editor:
+
+```shell
+sudo docker exec -it gitlab /bin/bash
+```
+
+You can also just edit `/etc/gitlab/gitlab.rb`:
+
+```shell
+sudo docker exec -it gitlab editor /etc/gitlab/gitlab.rb
+```
+
+Once you open `/etc/gitlab/gitlab.rb` make sure to set the `external_url` to
+point to a valid URL.
+
+To receive e-mails from GitLab you have to configure the
+[SMTP settings](https://docs.gitlab.com/omnibus/settings/smtp.html) because the GitLab Docker image doesn't
+have an SMTP server installed. You may also be interested in
+[enabling HTTPS](https://docs.gitlab.com/omnibus/settings/nginx.html#enable-https).
+
+After you make all the changes you want, you will need to restart the container
+in order to reconfigure GitLab:
+
+```shell
+sudo docker restart gitlab
+```
+
+GitLab will reconfigure itself whenever the container starts.
+For more options about configuring GitLab, check the
+[configuration documentation](https://docs.gitlab.com/omnibus/settings/configuration.html).
+
+### Pre-configure Docker container
+
+You can pre-configure the GitLab Docker image by adding the environment variable
+`GITLAB_OMNIBUS_CONFIG` to Docker run command. This variable can contain any
+`gitlab.rb` setting and is evaluated before the loading of the container's
+`gitlab.rb` file. This behavior allows you to configure the external GitLab URL,
+and make database configuration or any other option from the
+[Omnibus GitLab template](https://gitlab.com/gitlab-org/omnibus-gitlab/blob/master/files/gitlab-config-template/gitlab.rb.template).
+The settings contained in `GITLAB_OMNIBUS_CONFIG` aren't written to the
+`gitlab.rb` configuration file, and are evaluated on load.
+
+Here's an example that sets the external URL and enables LFS while starting
+the container:
+
+```shell
+sudo docker run --detach \
+  --hostname gitlab.example.com \
+  --env GITLAB_OMNIBUS_CONFIG="external_url 'http://my.domain.com/'; gitlab_rails['lfs_enabled'] = true;" \
+  --publish 443:443 --publish 80:80 --publish 22:22 \
+  --name gitlab \
+  --restart always \
+  --volume $GITLAB_HOME/config:/etc/gitlab \
+  --volume $GITLAB_HOME/logs:/var/log/gitlab \
+  --volume $GITLAB_HOME/data:/var/opt/gitlab \
+  --shm-size 256m \
+  gitlab/gitlab-ee:latest
+```
+
+Note that every time you execute a `docker run` command, you need to provide
+the `GITLAB_OMNIBUS_CONFIG` option. The content of `GITLAB_OMNIBUS_CONFIG` is
+_not_ preserved between subsequent runs.
+
+### Use tagged versions of GitLab
+
+Tagged versions of the GitLab Docker images are also provided.
+To see all available tags see:
+
+- [GitLab CE tags](https://hub.docker.com/r/gitlab/gitlab-ce/tags/)
+- [GitLab EE tags](https://hub.docker.com/r/gitlab/gitlab-ee/tags/)
+
+To use a specific tagged version, replace `gitlab/gitlab-ee:latest` with
+the GitLab version you want to run, for example `gitlab/gitlab-ee:12.1.3-ce.0`.
+
+### Run GitLab on a public IP address
+
+You can make Docker to use your IP address and forward all traffic to the
+GitLab container by modifying the `--publish` flag.
+
+To expose GitLab on IP `198.51.100.1`:
+
+```shell
+sudo docker run --detach \
+  --hostname gitlab.example.com \
+  --publish 198.51.100.1:443:443 \
+  --publish 198.51.100.1:80:80 \
+  --publish 198.51.100.1:22:22 \
+  --name gitlab \
+  --restart always \
+  --volume $GITLAB_HOME/config:/etc/gitlab \
+  --volume $GITLAB_HOME/logs:/var/log/gitlab \
+  --volume $GITLAB_HOME/data:/var/opt/gitlab \
+  --shm-size 256m \
+  gitlab/gitlab-ee:latest
+```
+
+You can then access your GitLab instance at `http://198.51.100.1/` and `https://198.51.100.1/`.
+
+### Expose GitLab on different ports
+
+GitLab will occupy [some ports](../administration/package_information/defaults.md)
+inside the container.
+
+If you want to use a different host port than `80` (HTTP) or `443` (HTTPS),
+you need to add a separate `--publish` directive to the `docker run` command.
+
+For example, to expose the web interface on the host's port `8929`, and the SSH service on
+port `2289`:
+
+1. Use the following `docker run` command:
+
+   ```shell
+   sudo docker run --detach \
+     --hostname gitlab.example.com \
+     --publish 8929:8929 --publish 2289:22 \
+     --name gitlab \
+     --restart always \
+     --volume $GITLAB_HOME/config:/etc/gitlab \
+     --volume $GITLAB_HOME/logs:/var/log/gitlab \
+     --volume $GITLAB_HOME/data:/var/opt/gitlab \
+     --shm-size 256m \
+     gitlab/gitlab-ee:latest
+   ```
+
+   NOTE:
+   The format for publishing ports is `hostPort:containerPort`. Read more in
+   Docker's documentation about
+   [exposing incoming ports](https://docs.docker.com/engine/reference/run/#/expose-incoming-ports).
+
+1. Enter the running container:
+
+   ```shell
+   sudo docker exec -it gitlab /bin/bash
+   ```
+
+1. Open `/etc/gitlab/gitlab.rb` with your editor and set `external_url`:
+
+   ```ruby
+   # For HTTP
+   external_url "http://gitlab.example.com:8929"
+
+   or
+
+   # For HTTPS (notice the https)
+   external_url "https://gitlab.example.com:8929"
+   ```
+
+   The port specified in this URL must match the port published to the host by Docker.
+   Additionally, if the NGINX listen port is not explicitly set in
+   `nginx['listen_port']`, it will be pulled from the `external_url`.
+   For more information see the [NGINX documentation](https://docs.gitlab.com/omnibus/settings/nginx.html).
+
+1. Set `gitlab_shell_ssh_port`:
+
+   ```ruby
+   gitlab_rails['gitlab_shell_ssh_port'] = 2289
+   ```
+
+1. Finally, reconfigure GitLab:
+
+   ```shell
+   gitlab-ctl reconfigure
+   ```
+
+Following the above example, you will be able to reach GitLab from your
+web browser under `<hostIP>:8929` and push using SSH under the port `2289`.
+
+A `docker-compose.yml` example that uses different ports can be found in the
+[Docker compose](#install-gitlab-using-docker-compose) section.
+
+## Upgrade
+
+In most cases, upgrading GitLab is as easy as downloading the newest Docker
+[image tag](#use-tagged-versions-of-gitlab).
+
+### Upgrade GitLab using Docker Engine
+
+To upgrade GitLab that was [installed using Docker Engine](#install-gitlab-using-docker-engine):
+
+1. Take a [backup](#back-up-gitlab).
+1. Stop the running container:
+
+   ```shell
+   sudo docker stop gitlab
+   ```
+
+1. Remove the existing container:
+
+   ```shell
+   sudo docker rm gitlab
+   ```
+
+1. Pull the new image. For example, the latest GitLab image:
+
+   ```shell
+   sudo docker pull gitlab/gitlab-ee:latest
+   ```
+
+1. Create the container once again with the
+[previously specified](#install-gitlab-using-docker-engine) options:
+
+   ```shell
+   sudo docker run --detach \
+   --hostname gitlab.example.com \
+   --publish 443:443 --publish 80:80 --publish 22:22 \
+   --name gitlab \
+   --restart always \
+   --volume $GITLAB_HOME/config:/etc/gitlab \
+   --volume $GITLAB_HOME/logs:/var/log/gitlab \
+   --volume $GITLAB_HOME/data:/var/opt/gitlab \
+   --shm-size 256m \
+   gitlab/gitlab-ee:latest
+   ```
+
+On the first run, GitLab will reconfigure and upgrade itself.
+
+Refer to the GitLab [Upgrade recommendations](../policy/maintenance.md#upgrade-recommendations)
+when upgrading between major versions.
+
+### Upgrade GitLab using Docker compose
+
+To upgrade GitLab that was [installed using Docker Compose](#install-gitlab-using-docker-compose):
+
+1. Take a [backup](#back-up-gitlab).
+1. Download the newest release and upgrade your GitLab instance:
+
+   ```shell
+   docker-compose pull
+   docker-compose up -d
+   ```
+
+   If you have used [tags](#use-tagged-versions-of-gitlab) instead, you'll need
+   to first edit `docker-compose.yml`.
+
+### Convert Community Edition to Enterprise Edition
+
+You can convert an existing Docker-based GitLab Community Edition (CE) container
+to a GitLab [Enterprise Edition](https://about.gitlab.com/pricing/) (EE) container
+using the same approach as [upgrading the version](#upgrade).
+
+We recommend you convert from the same version of CE to EE (for example, CE 14.1 to EE 14.1).
+This is not explicitly necessary, and any standard upgrade (for example, CE 14.0 to EE 14.1) should work.
+The following steps assume that you are upgrading the same version.
+
+1. Take a [backup](#back-up-gitlab).
+1. Stop the current CE container, and remove or rename it.
+1. To create a new container with GitLab EE,
+   replace `ce` with `ee` in your `docker run` command or `docker-compose.yml` file.
+   However, reuse the CE container name, port and file mappings, and version.
+
+### Upgrade the product documentation
+
+This is an optional step. If you [installed the documentation site](#install-the-product-documentation),
+see how to [upgrade to another version](../administration/docs_self_host.md#upgrade-using-docker).
+
+## Back up GitLab
+
+You can create a GitLab backup with:
+
+```shell
+docker exec -t <container name> gitlab-backup create
+```
+
+Read more on how to [back up and restore GitLab](../raketasks/backup_restore.md).
+
+NOTE:
+If configuration is provided entirely via the `GITLAB_OMNIBUS_CONFIG` environment variable
+(per the ["Pre-configure Docker Container"](#pre-configure-docker-container) steps),
+meaning no configuration is set directly in the `gitlab.rb` file, then there is no need
+to back up the `gitlab.rb` file.
+
+## Installing GitLab Community Edition
+
+[GitLab CE Docker image](https://hub.docker.com/r/gitlab/gitlab-ce/)
+
+To install the Community Edition, replace `ee` with `ce` in the commands on this
+page.
+
+## Troubleshooting
+
+The following information will help if you encounter problems using Omnibus GitLab and Docker.
+
+### Diagnose potential problems
+
+Read container logs:
+
+```shell
+sudo docker logs gitlab
+```
+
+Enter running container:
+
+```shell
+sudo docker exec -it gitlab /bin/bash
+```
+
+From within the container you can administer the GitLab container as you would
+normally administer an
+[Omnibus installation](
+
+
+***** start of linked file**************************************************************************
+
+
+# Omnibus GitLab
+
+## Description
+
+This project creates full-stack platform-specific [downloadable packages for GitLab][downloads].
+For other installation options please see the
+[GitLab installation page][installation].
+
+## Canonical source
+
+The source of omnibus-gitlab is [hosted on
+GitLab.com](https://gitlab.com/gitlab-org/omnibus-gitlab) and there are mirrors
+to make contributing as easy as possible.
+
+## Documentation
+
+The documentation overview is in the [readme in the doc directory](doc/README.md).
+
+## Omnibus fork
+
+Omnibus GitLab is using a fork of [omnibus project](https://github.com/chef/omnibus).  For additional information see the comments in the [Gemfile](/Gemfile).
+
+## Deprecated links
+
+*We left the links below in the readme to preserve old links, but please use the [readme in the doc directory](doc/README.md) to browse the complete documentation.*
+
+## Contributing
+
+Please see the [contribution guidelines](CONTRIBUTING.md)
+
+## Installation
+
+Please follow the steps on the [downloads page][downloads].
+
+### After installation
+
+Your GitLab instance should be reachable over HTTP at the IP or hostname of your
+server. You can login as an admin user with username `root` and password `5iveL!fe`.
+
+See [doc/maintenance/README.md](doc/maintenance/README.md) for useful commands
+to control/debug your GitLab instance.
+
+### Configuration options
+
+See [doc/settings/configuration.md](doc/settings/configuration.md).
+
+#### Configuring the external URL for GitLab
+
+See [doc/settings/configuration.md](doc/settings/configuration.md#configuring-the-external-url-for-gitlab).
+
+#### Storing Git data in an alternative directory
+
+See [doc/settings/configuration.md](doc/settings/configuration.md#storing-git-data-in-an-alternative-directory).
+
+#### Changing the name of the Git user / group
+
+See [doc/settings/configuration.md](doc/settings/configuration.md#changing-the-name-of-the-git-user-group).
+
+#### Setting up LDAP sign-in
+
+See [doc/settings/ldap.md](doc/settings/ldap.md).
+
+#### Enable HTTPS
+
+See [doc/settings/nginx.md](doc/settings/nginx.md#enable-https).
+
+#### Redirect `HTTP` requests to `HTTPS`
+
+See [doc/settings/nginx.md](doc/settings/nginx.md#redirect-http-requests-to-https).
+
+#### Change the default port and the ssl certificate locations
+
+See [doc/settings/nginx.md](doc/settings/nginx.md#change-the-default-port-and-the-ssl-certificate-locations).
+
+#### Use non-packaged web-server
+
+For using an existing Nginx, Passenger, or Apache webserver see [doc/settings/nginx.md](doc/settings/nginx.md#using-a-non-bundled-web-server).
+
+#### Using a non-packaged PostgreSQL database management server
+
+To connect to an external PostgreSQL DBMS see [doc/settings/database.md](doc/settings/database.md)
+
+#### Using a non-packaged Redis instance
+
+See [doc/settings/redis.md](doc/settings/redis.md).
+
+#### Adding ENV Vars to the Gitlab Runtime Environment
+
+See
+[doc/settings/environment-variables.md](doc/settings/environment-variables.md).
+
+#### Changing gitlab.yml settings
+
+See [doc/settings/gitlab.yml.md](doc/settings/gitlab.yml.md).
+
+#### Specify numeric user and group identifiers
+
+See [doc/settings/configuration.md](doc/settings/configuration.md#specify-numeric-user-and-group-identifiers).
+
+#### Sending application email via SMTP
+
+See [doc/settings/smtp.md](doc/settings/smtp.md).
+
+#### Omniauth (Google, Twitter, GitHub login)
+
+Omniauth configuration is documented in
+[docs.gitlab.com](https://docs.gitlab.com/ee/integration/omniauth.html).
+
+#### Adjusting Unicorn settings
+
+See [doc/settings/unicorn.md](doc/settings/unicorn.md).
+
+#### Setting the NGINX listen address or addresses
+
+See [doc/settings/nginx.md](doc/settings/nginx.md).
+
+#### Inserting custom NGINX settings into the GitLab server block
+
+See [doc/settings/nginx.md](doc/settings/nginx.md).
+
+#### Inserting custom settings into the NGINX config
+
+See [doc/settings/nginx.md](doc/settings/nginx.md).
+
+#### Only start omnibus-gitlab services after a given filesystem is mounted
+
+See [doc/settings/configuration.md](doc/settings/configuration.md#only-start-omnibus-gitlab-services-after-a-given-filesystem-is-mounted).
+
+### Updating
+
+Instructions for updating your Omnibus installation and upgrading from a manual
+installation are in the [update doc](doc/update/README.md).
+
+### Uninstalling omnibus-gitlab
+
+To remove [all users and groups created by Omnibus GitLab](doc/settings/configuration.md#disable-user-and-group-account-management),
+run `sudo gitlab-ctl stop && sudo gitlab-ctl remove-accounts` before removing the gitlab package (with `dpkg` or `yum`).
+
+If you have problems removing accounts or groups, run `luserdel` or `lgroupdel` manually
+to delete them. You might also want to manually remove the leftover user home directories
+from `/home/`.
+
+To remove all omnibus-gitlab data use `sudo gitlab-ctl cleanse && sudo rm -r /opt/gitlab`.
+
+To uninstall omnibus-gitlab, preserving your data (repositories, database, configuration), run the following commands.
+
+```
+# Stop gitlab and remove its supervision process
+sudo systemctl stop    gitlab-runsvdir
+sudo systemctl disable gitlab-runsvdir
+sudo rm /usr/lib/systemd/system/gitlab-runsvdir.service
+sudo systemctl daemon-reload
+sudo gitlab-ctl uninstall
+
+# (Replace with gitlab-ce if you have GitLab FOSS installed)
+
+# Debian/Ubuntu
+sudo apt remove gitlab-ee
+
+# Redhat/Centos
+sudo yum remove gitlab-ee
+```
+
+### Common installation problems
+
+This section has been moved to the separate document [doc/common_installation_problems/README.md](doc/common_installation_problems/README.md).
+
+Section below remains for historical reasons(mainly to not break existing links). Each section contains the link to the new location.
+
+#### Apt error 'The requested URL returned error: 403'
+
+See [doc/common_installation_problems/README.md](doc/common_installation_problems/README.md#apt-error-the-requested-url-returned-error-403).
+
+#### GitLab is unreachable in my browser
+
+See [doc/common_installation_problems/README.md](doc/common_installation_problems/README.md#gitlab-is-unreachable-in-my-browser).
+
+#### Emails are not being delivered
+
+See [doc/common_installation_problems/README.md](doc/common_installation_problems/README.md#emails-are-not-being-delivered).
+
+#### Reconfigure freezes at `ruby_block[supervise_redis_sleep] action run`
+
+See [doc/common_installation_problems/README.md](doc/common_installation_problems/README.md#reconfigure-freezes-at-ruby_blocksupervise_redis_sleep-action-run).
+
+#### TCP ports for GitLab services are already taken
+
+See [doc/common_installation_problems/README.md](doc/common_installation_problems/README.md#tcp-ports-for-gitlab-services-are-already-taken).
+
+#### Git SSH access stops working on SELinux-enabled systems
+
+See [doc/common_installation_problems/README.md](doc/common_installation_problems/README.md#git-ssh-access-stops-working-on-selinux-enabled-systems
+).
+
+#### Postgres error 'FATAL:  could not create shared memory segment: Cannot allocate memory'
+
+See [doc/common_installation_problems/README.md](doc/common_installation_problems/README.md#postgres-error-fatal-could-not-create-shared-memory-segment-cannot-allocate-memory).
+
+#### Reconfigure complains about the GLIBC version
+
+See [doc/common_installation_problems/README.md](doc/common_installation_problems/README.md#reconfigure-complains-about-the-glibc-version).
+
+#### Reconfigure fails to create the git user
+
+See [doc/common_installation_problems/README.md](doc/common_installation_problems/README.md#reconfigure-fails-to-create-the-git-user).
+
+#### Failed to modify kernel parameters with sysctl
+
+See [doc/common_installation_problems/README.md](doc/common_installation_problems/README.md#failed-to-modify-kernel-parameters-with-sysctl).
+
+#### I am unable to install omnibus-gitlab without root access
+
+See [doc/common_installation_problems/README.md](doc/common_installation_problems/README.md#i-am-unable-to-install-omnibus-gitlab-without-root-access).
+
+#### gitlab-rake assets:precompile fails with 'Permission denied'
+
+See [doc/common_installation_problems/README.md](doc/common_installation_problems/README.md#gitlab-rake-assetsprecompile-fails-with-permission-denied).
+
+#### 'Short read or OOM loading DB' error
+
+See [doc/common_installation_problems/README.md](doc/common_installation_problems/README.md#short-read-or-oom-loading-db-error).
+
+### Backups
+
+See [doc/settings/backups.md](doc/settings/backups.md).
+
+#### Backup and restore omnibus-gitlab configuration
+
+See [doc/settings/backups.md](doc/settings/backups.md#backup-and-restore-omnibus-gitlab-configuration).
+
+#### Creating an application backup
+
+See [doc/settings/backups.md](doc/settings/backups.md#creating-an-application-backup).
+
+### Restoring an application backup
+
+See [backup restore documentation](https://docs.gitlab.com/ee/raketasks/backup_restore.html#omnibus-installations).
+
+### Backup and restore using non-packaged database
+
+If you are using non-packaged database see [documentation on using non-packaged database](doc/settings/database.md#using-a-non-packaged-postgresql-database-management-server).
+
+### Upload backups to remote (cloud) storage
+
+For details check [backup restore document of GitLab CE](https://gitlab.com/gitlab-org/gitlab-foss/blob/966f68b33e1f15f08e383ec68346ed1bd690b59b/doc/raketasks/backup_restore.md#upload-backups-to-remote-cloud-storage).
+
+## Invoking Rake tasks
+
+See [doc/maintenance/index.md](doc/maintenance/index.md#invoking-rake-tasks).
+
+## Directory structure
+
+Omnibus-gitlab uses four different directories.
+
+- `/opt/gitlab` holds application code for GitLab and its dependencies.
+- `/var/opt/gitlab` holds application data and configuration files that
+  `gitlab-ctl reconfigure` writes to.
+- `/etc/gitlab` holds configuration files for omnibus-gitlab. These are
+  the only files that you should ever have to edit manually.
+- `/var/log/gitlab` contains all log data generated by components of
+  omnibus-gitlab.
+
+## Omnibus-gitlab and SELinux
+
+Although omnibus-gitlab runs on systems that have SELinux enabled, it does not
+use SELinux confinement features:
+
+- omnibus-gitlab creates unconfined system users;
+- omnibus-gitlab services run in an unconfined context.
+
+The correct operation of Git access via SSH depends on the labeling of
+`/var/opt/gitlab/.ssh`. If needed you can restore this labeling by running
+`sudo gitlab-ctl reconfigure`.
+
+Depending on your platform, `gitlab-ctl reconfigure` will install SELinux
+modules required to make GitLab work. These modules are listed in
+[files/gitlab-selinux/README.md](files/gitlab-selinux/README.md).
+
+NSA, if you're reading this, we'd really appreciate it if you could contribute
+back a SELinux profile for omnibus-gitlab :)
+Of course, if anyone else is reading this, you're welcome to contribute the
+SELinux profile too.
+
+### Logs
+
+This section has been moved to separate document [doc/settings/logs.md](doc/settings/logs.md).
+
+#### Tail logs in a console on the server
+
+See [doc/settings/logs.md](doc/settings/logs.md#tail-logs-in-a-console-on-the-server).
+
+##### Runit logs
+
+See [doc/settings/logs.md](doc/settings/logs.md#runit-logs).
+
+##### Logrotate
+
+See [doc/settings/logs.md](doc/settings/logs.md#logrotate).
+
+##### UDP log shipping (GitLab Enterprise Edition only)
+
+See [doc/settings/logs.md](doc/settings/logs.md#udp-log-shipping-gitlab-enterprise-edition-only)
+
+### Create a user and database for GitLab
+
+See [doc/settings/database.md](doc/settings/database.md).
+
+### Configure omnibus-gitlab to connect to it
+
+See [doc/settings/database.md](doc/settings/database.md).
+
+### Seed the database (fresh installs only)
+
+See [doc/settings/database.md](doc/settings/database.md).
+
+## Building your own package
+
+See [the separate build documentation](doc/build/index.md).
+
+## Running a custom GitLab version
+
+It is not recommended to make changes to any of the files in `/opt/gitlab`
+after installing omnibus-gitlab: they will either conflict with or be
+overwritten by future updates. If you want to run a custom version of GitLab
+you can [build your own package](doc/build/index.md) or use [another installation
+method][CE README].
+
+## Acknowledgments
+
+This omnibus installer project is based on the awesome work done by Chef in
+[omnibus-chef-server][omnibus-chef-server].
+
+[downloads]: https://about.gitlab.com/downloads/
+[CE README]: https://gitlab.com/gitlab-org/gitlab-foss/blob/master/README.md
+[omnibus-chef-server]: https://github.com/opscode/omnibus-chef-server
+[database.yml.mysql]: https://gitlab.com/gitlab-org/gitlab-foss/blob/master/config/database.yml.mysql
+[svlogd]: http://smarden.org/runit/svlogd.8.html
+[installation]: https://about.gitlab.com/install/
+[gitlab.rb.template]: https://gitlab.com/gitlab-org/omnibus-gitlab/blob/master/files/gitlab-config-template/gitlab.rb.template
+
+
+
+***** end of linked file**************************************************************************
+
+
+)
+
+### 500 Internal Error
+
+When updating the Docker image you may encounter an issue where all paths
+display a `500` page. If this occurs, restart the container to try to rectify the
+issue:
+
+```shell
+sudo docker restart gitlab
+```
+
+### Permission problems
+
+When updating from older GitLab Docker images you might encounter permission
+problems. This happens when users in previous images were not
+preserved correctly. There's script that fixes permissions for all files.
+
+To fix your container, execute `update-permissions` and restart the
+container afterwards:
+
+```shell
+sudo docker exec gitlab update-permissions
+sudo docker restart gitlab
+```
+
+### Windows/Mac: `Error executing action run on resource ruby_block[directory resource: /data/GitLab]`
+
+This error occurs when using Docker Toolbox with VirtualBox on Windows or Mac,
+and making use of Docker volumes. The `/c/Users` volume is mounted as a
+VirtualBox Shared Folder, and does not support the all POSIX file system features.
+The directory ownership and permissions cannot be changed without remounting, and
+GitLab fails.
+
+Our recommendation is to switch to using the native Docker install for your
+platform, instead of using Docker Toolbox.
+
+If you cannot use the native Docker install (Windows 10 Home Edition, or Windows 7/8),
+then an alternative solution is to setup NFS mounts instead of VirtualBox shares for
+Docker Toolbox's boot2docker.
+
+### Linux ACL issues
+
+If you are using file ACLs on the Docker host, the `docker` group requires full access to the volumes in order for GitLab to work:
+
+```shell
+getfacl $GITLAB_HOME
+
+# file: $GITLAB_HOME
+# owner: XXXX
+# group: XXXX
+user::rwx
+group::rwx
+group:docker:rwx
+mask::rwx
+default:user::rwx
+default:group::rwx
+default:group:docker:rwx
+default:mask::rwx
+default:other::r-x
+```
+
+If these are not correct, set them with:
+
+```shell
+sudo setfacl -mR default:group:docker:rwx $GITLAB_HOME
+```
+
+The default group is `docker`. If you changed the group, be sure to update your
+commands.
+
+### `/dev/shm` mount not having enough space in Docker container
+
+GitLab comes with a Prometheus metrics endpoint at `/-/metrics` to expose a
+variety of statistics on the health and performance of GitLab. The files
+required for this gets written to a temporary file system (like `/run` or
+`/dev/shm`).
+
+By default, Docker allocates 64MB to the shared memory directory (mounted at
+`/dev/shm`). This is insufficient to hold all the Prometheus metrics related
+files generated, and will generate error logs like the following:
+
+```plaintext
+writing value to /dev/shm/gitlab/sidekiq/gauge_all_sidekiq_0-1.db failed with unmapped file
+writing value to /dev/shm/gitlab/sidekiq/gauge_all_sidekiq_0-1.db failed with unmapped file
+writing value to /dev/shm/gitlab/sidekiq/gauge_all_sidekiq_0-1.db failed with unmapped file
+writing value to /dev/shm/gitlab/sidekiq/histogram_sidekiq_0-0.db failed with unmapped file
+writing value to /dev/shm/gitlab/sidekiq/histogram_sidekiq_0-0.db failed with unmapped file
+writing value to /dev/shm/gitlab/sidekiq/histogram_sidekiq_0-0.db failed with unmapped file
+writing value to /dev/shm/gitlab/sidekiq/histogram_sidekiq_0-0.db failed with unmapped file
+```
+
+Other than disabling the Prometheus Metrics from the Admin Area, the recommended
+solution to fix this problem is to increase the size of shared memory to at least 256MB.
+If using `docker run`, this can be done by passing the flag `--shm-size 256m`.
+If using a `docker-compose.yml` file, the `shm_size` key can be used for this
+purpose.
+
+### Docker containers exhausts space due to the `json-file`
+
+Docker's [default logging driver is `json-file`](https://docs.docker.com/config/containers/logging/configure/#configure-the-default-logging-driver), which performs no log rotation by default. As a result of this lack of rotation, log files stored by the `json-file` driver can consume a significant amount of disk space for containers that generate a lot of output. This can lead to disk space exhaustion. To address this, use [`journald`](https://docs.docker.com/config/containers/logging/journald/) as the logging driver when available, or [another supported driver](https://docs.docker.com/config/containers/logging/configure/#supported-logging-drivers) with native rotation support.
+
+### Buffer overflow error when starting Docker
+
+If you receive this buffer overflow error, you should purge old log files in
+`/var/log/gitlab`:
+
+```plaintext
+buffer overflow detected : terminated
+xargs: tail: terminated by signal 6
+```
+
+Removing old log files helps fix the error, and ensures a clean startup of the instance.
