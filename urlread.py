@@ -1,30 +1,31 @@
 import urllib.request
 import re
 
-file_list = ["https://raw.githubusercontent.com/wiki/vtproject/gdt/Test-file-A.md",
-             "https://raw.githubusercontent.com/wiki/vtproject/gdt/Test-file-B.md"]
+source_list = ["https://gitlab.com/gitlab-org/gitlab/blob/master/doc/install/relative_url.md",
+               "https://gitlab.com/gitlab-org/omnibus-gitlab/blob/master/doc/index.md"]
 
 data_list = []
-for url in file_list:
-    with urllib.request.urlopen(url) as response:
+for url in source_list:
+    with urllib.request.urlopen(url.replace("blob", "raw")) as response:
         url_data = response.read().decode("utf-8") 
         data_list.append(url_data)
-merged_file = "\n".join(data_list) 
+merged_file = "\n\n\n >>>>>>> next source file <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n\n\n".join(data_list) 
+
 
 regularex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|(([^\s()<>]+|(([^\s()<>]+)))))+(?:(([^\s()<>]+|(([^\s()<>]+))))|[^\s`!()[]{};:'\".,<>?«»“”‘’]))"
 
 url_list = re.findall(regularex,merged_file)
-    
+
 linked_files = []
 for url in url_list:
     linked_files.append(url[0])
 
 for url in linked_files:
-    with urllib.request.urlopen(url) as response:
-        url_data = response.read().decode("utf-8")
-        merged_file = merged_file.replace(url, url_data)    
-
-print(merged_file)
+    if ".md" in url:
+        print(url)
+        with urllib.request.urlopen(url.replace("blob", "raw")) as response:
+            link_data = "\n\n\n >>>>>>> start of linked file <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n\n\n" + response.read().decode("utf-8") + "\n\n\n***** end of linked file **************************************************************************\n\n\n"
+            merged_file = merged_file.replace(url, link_data)    
 
 with open("output.md", "w") as output: #delete previous instance of file 
     output.close()
