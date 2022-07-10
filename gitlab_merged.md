@@ -17,7 +17,10 @@ domain name is:
 - Required for HTTPS.
 
   NOTE:
-  To take advantage of the [Let's Encrypt integration]([- start of linked file https://gitlab.com/gitlab-org/omnibus-gitlab/-/blob/master/doc/settings/ssl.md -] 
+  To take advantage of the [Let's Encrypt integration](
+
+
+[- start of linked file https://gitlab.com/gitlab-org/omnibus-gitlab/-/blob/master/doc/settings/ssl.md -] 
 ---
 stage: Enablement
 group: Distribution
@@ -518,7 +521,6 @@ gitlab_rails['env'] = {"SSL_CERT_FILE" => "/usr/lib/ssl/private/customcacert.pem
 [- end of linked file -]
 
 
-
 ) (automatic SSL certificates),
   your instance's domain name must be resolvable over the public internet.
 
@@ -563,7 +565,10 @@ The following GitLab settings correspond to DNS entries.
 
 | GitLab setting | Description | Configuration |
 | -------------- | ----------- | ------------- |
-| `external_url` | This URL interacts with the main GitLab instance. It's used when cloning over SSH/HTTP/HTTPS and when accessing the web UI. GitLab Runner uses this URL to communicate with the instance. | [Configure the `external_url`]([- start of linked file https://gitlab.com/gitlab-org/omnibus-gitlab/-/blob/master/doc/settings/configuration.md -] 
+| `external_url` | This URL interacts with the main GitLab instance. It's used when cloning over SSH/HTTP/HTTPS and when accessing the web UI. GitLab Runner uses this URL to communicate with the instance. | [Configure the `external_url`](
+
+
+[- start of linked file https://gitlab.com/gitlab-org/omnibus-gitlab/-/blob/master/doc/settings/configuration.md -] 
 ---
 stage: Enablement
 group: Distribution
@@ -1311,7 +1316,6 @@ Make sure to stop `runit` before moving the home directory.
 [- end of linked file -]
 
 
-
 ). |
 | `registry_external_url` | This URL is used to interact with the [Container Registry](https://docs.gitlab.com/ee/user/packages/container_registry/). It can be used by the Let's Encrypt integration. This URL can also use the same DNS entry as `external_url` but on a different port. | [Configure the `registry_external_url`](https://docs.gitlab.com/ee/administration/packages/container_registry.html#container-registry-domain-configuration). |
 | `mattermost_external_url` | This URL is used for the [bundled Mattermost](https://docs.gitlab.com/ee/integration/mattermost/) software. It can be used by the Let's Encrypt integration. | [Configure the `mattermost_external_url`](https://docs.gitlab.com/ee/integration/mattermost/#getting-started). |
@@ -1390,6 +1394,9 @@ but you must provide the full domain name for each one.
 
 The Let's Encrypt integration does not fetch a wildcard certificate. You must do this
 [on your own](https://certbot.eff.org/faq/#does-let-s-encrypt-issue-wildcard-certificates).
+
+
+
 [- end of source file -]
 
 
@@ -1406,7 +1413,10 @@ Upgrading from non-Omnibus installations has not been tested by GitLab.com.
 
 Please be advised that you lose your settings in files such as `gitlab.yml`,
 `puma.rb` and `smtp_settings.rb`. You must
-[configure those settings in `/etc/gitlab/gitlab.rb`]([- start of linked file https://gitlab.com/gitlab-org/omnibus-gitlab/-/blob/master/doc/index.md -] 
+[configure those settings in `/etc/gitlab/gitlab.rb`](
+
+
+[- start of linked file https://gitlab.com/gitlab-org/omnibus-gitlab/-/blob/master/doc/index.md -] 
 ---
 stage: Enablement
 group: Distribution
@@ -1493,7 +1503,6 @@ For troubleshooting details, see [Troubleshooting Omnibus GitLab installation is
 
 See the [development documentation](development/index.md)
 [- end of linked file -]
-
 
 
 ).
@@ -1665,7 +1674,10 @@ If you can log into the GitLab web interface, the next step is to reboot your
 server to make sure none of the old services interferes with Omnibus GitLab.
 
 If you are using special features such as LDAP you will have to put your
-settings in `gitlab.rb`, see the [settings docs]([- start of linked file https://gitlab.com/gitlab-org/omnibus-gitlab/-/blob/master/doc/settings/index.md -] 
+settings in `gitlab.rb`, see the [settings docs](
+
+
+[- start of linked file https://gitlab.com/gitlab-org/omnibus-gitlab/-/blob/master/doc/settings/index.md -] 
 ---
 stage: Enablement
 group: Distribution
@@ -1697,7 +1709,6 @@ info: To determine the technical writer assigned to the Stage/Group associated w
 [- end of linked file -]
 
 
-
 ).
 
 ## Upgrading from non-Omnibus MySQL to an Omnibus installation (version 6.8+)
@@ -1712,6 +1723,9 @@ To convert to PostgreSQL and use the built-in server, follow the steps:
 - [Create a backup of the non-Omnibus MySQL installation](https://docs.gitlab.com/ee/raketasks/backup_restore.html#creating-a-backup-of-the-gitlab-system)
 - [Export and convert the existing MySQL database in the GitLab backup file](https://docs.gitlab.com/ee/update/mysql_to_postgresql.html)
 - [Restore this in the Omnibus installation](https://docs.gitlab.com/ee/raketasks/backup_restore.html#restore-for-omnibus-installations)
+
+
+
 [- end of source file -]
 
 
