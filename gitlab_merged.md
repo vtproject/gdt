@@ -1,8 +1,7 @@
----
----
-
-
->>>>>>>>>>> file https://gitlab.com/gitlab-org/omnibus-gitlab/-/blob/master/doc/settings/dns.md
+--- 
+ --- 
+ source file https://gitlab.com/gitlab-org/omnibus-gitlab/-/blob/master/doc/settings/dns.md--- 
+ --- 
 ---
 stage: Enablement
 group: Distribution
@@ -21,12 +20,11 @@ domain name is:
 - Required for HTTPS.
 
   NOTE:
-  To take advantage of the [Let's Encrypt integration](
-
-
- >>>>>>> start of linked file https://gitlab.com/gitlab-org/omnibus-gitlab/-/blob/master/doc/settings/ssl.md
-
-
+  To take advantage of the [Let's Encrypt integration](--- 
+ --- 
+ start of linked file https://gitlab.com/gitlab-org/omnibus-gitlab/-/blob/master/doc/settings/ssl.md
+---
+---
 ---
 stage: Enablement
 group: Distribution
@@ -525,11 +523,11 @@ variables](environment-variables.md). For example:
 gitlab_rails['env'] = {"SSL_CERT_FILE" => "/usr/lib/ssl/private/customcacert.pem"}
 ```
 
-
-
->>>>> end of linked file <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-
+---
+---
+ end of linked file 
+ --- 
+ --- 
 ) (automatic SSL certificates),
   your instance's domain name must be resolvable over the public internet.
 
@@ -574,12 +572,11 @@ The following GitLab settings correspond to DNS entries.
 
 | GitLab setting | Description | Configuration |
 | -------------- | ----------- | ------------- |
-| `external_url` | This URL interacts with the main GitLab instance. It's used when cloning over SSH/HTTP/HTTPS and when accessing the web UI. GitLab Runner uses this URL to communicate with the instance. | [Configure the `external_url`](
-
-
- >>>>>>> start of linked file https://gitlab.com/gitlab-org/omnibus-gitlab/-/blob/master/doc/settings/configuration.md
-
-
+| `external_url` | This URL interacts with the main GitLab instance. It's used when cloning over SSH/HTTP/HTTPS and when accessing the web UI. GitLab Runner uses this URL to communicate with the instance. | [Configure the `external_url`](--- 
+ --- 
+ start of linked file https://gitlab.com/gitlab-org/omnibus-gitlab/-/blob/master/doc/settings/configuration.md
+---
+---
 ---
 stage: Enablement
 group: Distribution
@@ -1325,11 +1322,11 @@ Ran ["usermod", "-d", "/var/opt/gitlab", "git"] returned 8
 
 Make sure to stop `runit` before moving the home directory.
 
-
-
->>>>> end of linked file <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-
+---
+---
+ end of linked file 
+ --- 
+ --- 
 ). |
 | `registry_external_url` | This URL is used to interact with the [Container Registry](https://docs.gitlab.com/ee/user/packages/container_registry/). It can be used by the Let's Encrypt integration. This URL can also use the same DNS entry as `external_url` but on a different port. | [Configure the `registry_external_url`](https://docs.gitlab.com/ee/administration/packages/container_registry.html#container-registry-domain-configuration). |
 | `mattermost_external_url` | This URL is used for the [bundled Mattermost](https://docs.gitlab.com/ee/integration/mattermost/) software. It can be used by the Let's Encrypt integration. | [Configure the `mattermost_external_url`](https://docs.gitlab.com/ee/integration/mattermost/#getting-started). |
