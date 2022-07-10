@@ -1,7 +1,10 @@
---- 
+
+x
+
 --- 
  source file https://gitlab.com/gitlab-org/omnibus-gitlab/-/blob/master/doc/settings/dns.md
 --- 
+
 ---
 stage: Enablement
 group: Distribution
