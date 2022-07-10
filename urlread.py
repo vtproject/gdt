@@ -12,9 +12,16 @@ for url in source_list:
 merged_file = "\n\n\n >>>>>>> next source file <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n\n\n".join(data_list) 
 
 
-regularex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|(([^\s()<>]+|(([^\s()<>]+)))))+(?:(([^\s()<>]+|(([^\s()<>]+))))|[^\s`!()[]{};:'\".,<>?«»“”‘’]))"
+regex_http = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|(([^\s()<>]+|(([^\s()<>]+)))))+(?:(([^\s()<>]+|(([^\s()<>]+))))|[^\s`!()[]{};:'\".,<>?«»“”‘’]))"
+regex_md = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
 
-url_list = re.findall(regularex,merged_file)
+
+url_list = re.findall(regex_http,merged_file)
+md_links = list(regex_md.findall(merged_file))
+
+for item in md_links:
+    if ".md" in item[1]:
+        print(item)
 
 linked_files = []
 for url in url_list:
